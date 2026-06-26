@@ -242,6 +242,19 @@ function gradeToPct(g){
   const cum=GRADE_CUM[gi-1] + frac*(GRADE_CUM[gi]-GRADE_CUM[gi-1]);
   return Math.max(0, Math.min(100, Math.round(100-cum)));
 }
+/* 백분위 → 등급 변환 (위 구간을 역산, 근삿값) */
+function pctToGrade(p){
+  if(p==null) return null;
+  const cum = Math.max(0, Math.min(100, 100 - p));
+  for(let g=1; g<=9; g++){
+    if(cum < GRADE_CUM[g] || g===9){
+      const lo=GRADE_CUM[g-1], hi=GRADE_CUM[g];
+      const frac = hi>lo ? (cum-lo)/(hi-lo) : 0;
+      return r1(Math.min(9, Math.max(1, g + frac)));
+    }
+  }
+  return null;
+}
 
 /* ---------- 계열 분류 (인문/자연/예체능/미정) ---------- */
 /* 우선순위: ①엑셀 계열열/JSON값 → ②이름의 (인문)/(자연)/(예체능)·계열표기 → ③보정목록 → ④키워드 자동분류
@@ -460,12 +473,13 @@ function drawTable(list, showZone){
     <th>대학</th><th>군</th><th>전형명 · 모집단위</th>
     <th class="num">모집</th><th class="num">경쟁률</th>
     <th class="num">국어</th><th class="num">수학</th><th class="num">탐구</th>
-    <th class="num">평균<br>${cut}%</th><th class="num">영/한</th>
+    <th class="num">평균<br>${cut}%</th><th class="num">평균<br>등급</th><th class="num">영/한</th>
     ${showZone?'<th>구분</th>':''}</tr></thead>`;
   const body=list.map(({d,zone})=>{
     const trk=d.계열==="인문"?'<span class="tag humn">인문</span>':d.계열==="자연"?'<span class="tag natu">자연</span>':d.계열==="예체능"?'<span class="tag arts">예체능</span>':d.계열==="미정"?'<span class="tag undf">자율</span>':'';
     const zoneCell=showZone?`<td data-l="구분"><span class="zone ${zone}">${zone==="reach"?"상향":zone==="safe"?"안정":"적정"}</span></td>`:'';
     const eh=`${fmt(cutEng(d))}·${fmt(cutHis(d))}`;
+    const gr=pctToGrade(cutAvg(d));
     return `<tr>
       <td class="uni" data-l="대학">${d.대학}</td>
       <td data-l="군"><span class="tag gun">${d.군}</span></td>
@@ -476,6 +490,7 @@ function drawTable(list, showZone){
       <td class="num" data-l="수학">${fmt(cutMat(d))}</td>
       <td class="num" data-l="탐구">${fmt(cutTam(d))}</td>
       <td class="num cut-on" data-l="평균">${fmt(cutAvg(d))}</td>
+      <td class="num" data-l="평균등급">${gr==null?'<span class="na">—</span>':gr.toFixed(1)}</td>
       <td class="num" data-l="영/한">${eh}</td>
       ${zoneCell}</tr>`;
   }).join("");
